@@ -8,13 +8,18 @@ def run_python_file(working_directory, file_path, args=None):
         absolute_file_path = os.path.abspath(os.path.join(working_dir_abs, file_path))
 
         valid_path = os.path.commonpath([working_dir_abs, absolute_file_path]) == working_dir_abs
+
+        # checking if path is in working directory 
         if not valid_path:
             return f'Error: Cannot execute "{file_path}" as it is outside the permitted working directory'
-
+        
+        # checking if is a regular file
         if not os.path.isfile(absolute_file_path):
             return f'Error: "{file_path}" does not exist or is not a regular file'
 
         _, ext = os.path.splitext(absolute_file_path)
+
+        # checking file extension is .py
         if ext.lower() != ".py":
             return f'Error: "{file_path}" is not a Python file'
 
@@ -25,9 +30,12 @@ def run_python_file(working_directory, file_path, args=None):
         cp = subprocess.run(command, cwd=working_dir_abs, text=True, timeout=30, capture_output=True)
 
         output = []
+
+        # return code is not 0
         if cp.returncode != 0:
             output.append(f"Process exited with code {cp.returncode}")
 
+        # output check
         if not cp.stdout and not cp.stderr:
             output.append("No output produced")
         else:
