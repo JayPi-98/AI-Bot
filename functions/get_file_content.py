@@ -3,7 +3,7 @@ import os
 
 MAX_CHARS = 10000
 
-def get_file_content(working_directory:str , file_path:str):
+def get_file_content(working_directory , file_path):
     try:
         working_dir_abs = os.path.abspath(working_directory)
 

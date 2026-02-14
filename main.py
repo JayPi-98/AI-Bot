@@ -3,6 +3,9 @@ import argparse
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from prompts import system_prompt
+import config
+from call_function import available_functions
 
 
 def main():
@@ -23,20 +26,23 @@ def main():
 
     response = client.models.generate_content(
         model='gemini-2.5-flash', 
-        contents=messages
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions], system_instruction=system_prompt
         )
+    )
     
     if not response.usage_metadata:
         raise RuntimeError("Gemini API response appears to be malformed")
 
-    print("Hello from ai-bot!")
     if args.verbose == True:
         print("User prompt: ",  args.user_prompt)
         print("Prompt tokens: ",response.usage_metadata.prompt_token_count)
         print("Response tokens: ", response.usage_metadata.candidates_token_count )
     
     else:
-        print("Response text: ",response.text)
+        print(response.text)
+        print(response.function_calls)
 
 
 if __name__ == "__main__":
