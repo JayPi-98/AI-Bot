@@ -5,8 +5,7 @@ from google import genai
 from google.genai import types
 from prompts import system_prompt
 import config
-from call_function import available_functions
-
+from call_function import available_functions, call_function
 
 def main():
     load_dotenv()
@@ -35,14 +34,32 @@ def main():
     if not response.usage_metadata:
         raise RuntimeError("Gemini API response appears to be malformed")
 
+    function_responses = []
+    if response.function_calls:
+        for function_call in response.function_calls:
+            function_call_result = call_function(function_call, args.verbose)
+
+            if not function_call_result.parts:
+                raise Exception("Function call result has no parts")
+
+            if not function_call_result.parts[0].function_response:
+                raise Exception("Function call result is missing function_response")
+
+            if not function_call_result.parts[0].function_response.response:
+                raise Exception("Function call result is missing response payload")
+
+            function_responses.append(function_call_result.parts[0])
+
+            if args.verbose == True:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
+
     if args.verbose == True:
         print("User prompt: ",  args.user_prompt)
         print("Prompt tokens: ",response.usage_metadata.prompt_token_count)
         print("Response tokens: ", response.usage_metadata.candidates_token_count )
-    
-    else:
+
+    if not response.function_calls:
         print(response.text)
-        print(response.function_calls)
 
 
 if __name__ == "__main__":
