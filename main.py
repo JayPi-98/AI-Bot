@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 from dotenv import load_dotenv
 from google import genai
@@ -23,43 +24,57 @@ def main():
 
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
-    response = client.models.generate_content(
-        model='gemini-2.5-flash', 
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
+    for _ in range(20):
+        response = client.models.generate_content(
+            model='gemini-2.5-flash', 
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=[available_functions], system_instruction=system_prompt
+            )
         )
-    )
-    
-    if not response.usage_metadata:
-        raise RuntimeError("Gemini API response appears to be malformed")
 
-    function_responses = []
-    if response.function_calls:
-        for function_call in response.function_calls:
-            function_call_result = call_function(function_call, args.verbose)
+        candidates = response.candidates
+        if candidates:
+            for candidate in candidates:
+                if candidate.content:
+                    messages.append(candidate.content)
 
-            if not function_call_result.parts:
-                raise Exception("Function call result has no parts")
+        if not response.usage_metadata:
+            raise RuntimeError("Gemini API response appears to be malformed")
 
-            if not function_call_result.parts[0].function_response:
-                raise Exception("Function call result is missing function_response")
+        function_responses = []
+        if response.function_calls:
+            for function_call in response.function_calls:
+                function_call_result = call_function(function_call, args.verbose)
 
-            if not function_call_result.parts[0].function_response.response:
-                raise Exception("Function call result is missing response payload")
+                if not function_call_result.parts:
+                    raise Exception("Function call result has no parts")
 
-            function_responses.append(function_call_result.parts[0])
+                if not function_call_result.parts[0].function_response:
+                    raise Exception("Function call result is missing function_response")
 
-            if args.verbose == True:
-                print(f"-> {function_call_result.parts[0].function_response.response}")
+                if not function_call_result.parts[0].function_response.response:
+                    raise Exception("Function call result is missing response payload")
 
-    if args.verbose == True:
-        print("User prompt: ",  args.user_prompt)
-        print("Prompt tokens: ",response.usage_metadata.prompt_token_count)
-        print("Response tokens: ", response.usage_metadata.candidates_token_count )
+                function_responses.append(function_call_result.parts[0])
 
-    if not response.function_calls:
-        print(response.text)
+                if args.verbose == True:
+                    print(f"-> {function_call_result.parts[0].function_response.response}")
+
+        if args.verbose == True:
+            print("User prompt: ",  args.user_prompt)
+            print("Prompt tokens: ",response.usage_metadata.prompt_token_count)
+            print("Response tokens: ", response.usage_metadata.candidates_token_count )
+
+        if not response.function_calls:
+            print(response.text)
+            return
+
+        if function_responses:
+            messages.append(types.Content(role="user", parts=function_responses))
+
+    print("Error: reached maximum iterations (20) before the model produced a final response.")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
